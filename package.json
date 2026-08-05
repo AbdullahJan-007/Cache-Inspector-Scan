@@ -1,0 +1,31 @@
+{
+  "name": "cache-inspector-scan",
+  "version": "1.0.0",
+  "description": "Scans a Next.js App Router project for caching mistakes beginners commonly miss. Zero dependencies.",
+  "author": "Abdullah Jan",
+  "type": "module",
+  "license": "MIT",
+  "keywords": [
+    "nextjs",
+    "next",
+    "caching",
+    "cli",
+    "static-analysis",
+    "app-router"
+  ],
+  "files": [
+    "bin",
+    "lib",
+    "README.md",
+    "LICENSE"
+  ],
+  "bin": {
+    "cache-inspector-scan": "bin/cli.mjs"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
