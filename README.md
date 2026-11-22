@@ -1,136 +1,136 @@
 # cache-inspector-scan
 
-Scans a Next.js App Router project for real caching mistakes and reports
-them in plain language, with the exact file and line. Zero dependencies —
-reads local files only, no network access, nothing leaves your machine.
+> Production-grade **Next.js App Router** caching static analyzer, CLI, programmatic SDK, and universal LSP / IDE extension.
+> **Zero dependencies. 100% local. Cross-OS (Windows, macOS, Linux).**
 
-## Install
+Next.js 15 and 16 flipped default caching behavior for `fetch()` and `GET` Route Handlers and introduced `'use cache'`, `cacheLife()`, `cacheTag()`, and `updateTag()`. `cache-inspector-scan` catches real caching bugs in your codebase before they hit production.
 
-```bash
-npm link
-```
+---
 
-Run once, from inside this folder. No `npm install` needed first — this
-package has zero dependencies, so there's nothing to install. `npm link`
-alone makes `cache-inspector-scan` a permanent command on your system.
+## Quick Start
 
-## Usage
-
-Run it from inside any Next.js project:
+Run directly with `npx` (no installation needed):
 
 ```bash
-cache-inspector-scan
+npx cache-inspector-scan
 ```
 
-Or point it at a project without `cd`-ing into it first:
+Or scan a specific project directory:
 
 ```bash
-cache-inspector-scan /path/to/project
+npx cache-inspector-scan ./apps/web
 ```
 
-## How it works
+Or install as a dev dependency:
 
-```mermaid
-flowchart TD
-    A[You run the command] --> B[Detect the Next.js version]
-    B --> C[Walk every file under app/ or pages/]
-    C --> D{For each file}
-    D --> E[Find every fetch call]
-    D --> F[Check for a Server Action]
-    E --> G{Has an explicit cache option?}
-    G -- No, and it's a GET --> H[Flag: missing-cache-option]
-    G -- Yes, or it's a mutation --> I[Skip — nothing wrong]
-    F --> J{Calls revalidateTag or revalidatePath?}
-    J -- No --> K[Flag: possible-missing-invalidation]
-    J -- Yes, or no Server Action here --> I
-    H --> L[Sort every flag by severity]
-    K --> L
-    L --> M[Print the report, exit 1 if anything is HIGH]
+```bash
+npm install -D cache-inspector-scan
 ```
 
-Five steps, in order, every time:
+---
 
-1. **You run `cache-inspector-scan`.** No arguments needed — whatever
-   folder your terminal is currently sitting in becomes the target.
-2. **It detects your real Next.js version** — checks
-   `node_modules/next/package.json` first (the actual installed version),
-   falls back to the version range declared in `package.json` if that
-   folder isn't there yet. This matters because Next.js's caching default
-   for `fetch()` changed in version 15 — the tool needs to know which
-   rules apply to explain findings correctly.
-3. **It walks every `.ts`, `.tsx`, `.js`, and `.jsx` file** under `app/`,
-   `pages/`, `src/app/`, or `src/pages/` — whichever exist — skipping
-   `node_modules`, `.next`, and `.git`.
-4. **It checks each file for two specific patterns:**
-   - Every `fetch(...)` call is extracted with real balanced-parenthesis
-     parsing (not a naive regex, so multi-line option objects are handled
-     correctly). Mutating requests (`method: 'POST'`/`PUT`/`DELETE`/`PATCH`)
-     are skipped — caching isn't the relevant question for those. What's
-     left is checked for an explicit `cache:` or `next: { revalidate }`
-     option; if neither is present, that's a finding.
-   - If the file contains a Server Action (`'use server'`), it's checked
-     for an actual `revalidateTag(...)` or `revalidatePath(...)` **call** —
-     not just those words appearing anywhere, since a comment mentioning
-     them shouldn't count as one being present. No call found, no
-     Server Action-mutation without invalidation: that's a finding too.
-5. **Every finding is sorted by severity and printed** — file, line,
-   the exact code snippet, and a plain-language explanation with a fix.
-   If anything is HIGH severity, the command exits with code `1`, so it
-   can fail a CI build automatically.
+## Rules Checked (`CI001` – `CI006`)
 
-## Options
+| Rule | Type | What It Catches |
+|---|---|---|
+| `CI001` | `missing-cache-option` | Server `fetch()` calls without explicit `cache:` or `next: { revalidate / tags }` (ignores `'use client'`, `pages/`, mutating HTTP methods, and route segment configs). |
+| `CI002` | `possible-missing-invalidation` | `'use server'` Server Actions without `revalidatePath()`, `revalidateTag()`, `updateTag()`, or `refresh()`. |
+| `CI003` | `conflicting-cache-options` | Contradictory `fetch()` options such as `cache: 'no-store'` combined with `next: { revalidate: 60 }`. |
+| `CI004` | `route-handler-get-caching` | App Router `GET` Route Handlers (`route.ts`) without explicit `export const dynamic` or `export const revalidate`. |
+| `CI005` | `dynamic-api-with-force-static` | Calling `cookies()`, `headers()`, or `draftMode()` in a file that exports `dynamic = 'force-static'`. |
+| `CI006` | `use-cache-without-cache-life` | `'use cache'` directive without explicit `cacheLife()` or `cacheTag()`. |
 
-```
-cache-inspector-scan [path]        Scan a project (default: current folder)
-cache-inspector-scan --json [path] Print results as JSON
-cache-inspector-scan --help        Show usage
-cache-inspector-scan --version     Show version
+See [docs/rules.md](./docs/rules.md) for full details and fix examples.
+
+---
+
+## CLI Usage & Options
+
+```bash
+cache-inspector-scan [options] [path]
 ```
 
-## What it checks
+| Option | Description |
+|---|---|
+| `--format <fmt>` | Output format: `text` (default), `json`, `sarif` (SARIF 2.1.0), or `github` (GitHub Actions annotations) |
+| `--json` | Shorthand for `--format json` |
+| `--fail-on <level>` | Exit with code `1` on `high` (default), `medium`, `low`, or `none` |
+| `--ignore <pattern>` | Ignore files/folders matching pattern (repeatable) |
+| `--no-color` | Disable ANSI colors (also respects `NO_COLOR`) |
+| `--help, -h` | Show help |
+| `--version, -v` | Show version |
 
-**1. `fetch()` calls with no explicit cache option.**
-On Next.js 14 and earlier, this is cached indefinitely by default. On
-Next.js 15+, the default flipped — it's not cached at all unless you opt
-in. A lot of beginner and intermediate developers don't know that changed,
-so this is flagged HIGH severity on 15+ and LOW on 14 and earlier.
-
-**2. Server Actions with no `revalidateTag`/`revalidatePath` call.**
-A heuristic, not a certainty — the invalidation call might legitimately
-live in a different file. Flagged as medium severity, worth a manual check.
-
-This is not a full audit. It catches these two specific, common mistakes
-and explains each one clearly.
-
-## Exit codes
+### Exit Codes
 
 | Code | Meaning |
 |---|---|
-| `0` | Scan completed, nothing HIGH severity found |
-| `1` | Scan completed, at least one HIGH severity issue found |
-| `2` | Couldn't run the scan (bad path, etc.) |
+| `0` | Scan completed; no findings at or above `--fail-on` threshold |
+| `1` | Scan completed; at least one finding at or above `--fail-on` threshold |
+| `2` | Invalid CLI flag, invalid config JSON, or unreadable/nonexistent target path |
 
-## Example output
+---
 
+## Configuration (`.cacheinspectorrc.json`)
+
+```json
+{
+  "roots": ["app", "src/app", "lib", "src/lib", "actions"],
+  "ignore": ["app/legacy"],
+  "failOn": "high",
+  "rules": {
+    "CI002": "low",
+    "CI006": "off"
+  }
+}
 ```
-Cache Inspector scan — /Users/you/my-app
-Next.js version detected: 16
-Scanned: app  (8 files)
 
-Found 1 thing worth a look: 1 high, 0 medium, 0 low
+### Inline Suppressions
 
-[HIGH] app/products/page.tsx:2
-   fetch('https://api.example.com/products')
-   -> Next.js 16: a fetch with no cache option is NOT cached by default
-      (this changed in Next.js 15). If you wanted this cached, this is
-      probably a bug.
+```ts
+// cache-inspector-ignore-next-line CI001
+const res = await fetch('https://api.example.com/health');
 ```
 
-## Uninstall
+---
 
-```bash
-npm unlink -g cache-inspector-scan
+## Programmatic API (ESM + TypeScript Types)
+
+```ts
+import { scanProject, scanSource, formatSarif } from 'cache-inspector-scan';
+
+const result = scanProject('./my-next-app');
+console.log(result.summary, result.findings);
+
+// Scan an in-memory buffer (ideal for custom tooling)
+const findings = scanSource(`export default async function Page() { await fetch('/api'); }`, {
+  filePath: 'app/page.tsx',
+  nextVersion: 15,
+});
 ```
+
+---
+
+## Universal IDE Extension & LSP (All IDEs, All OSes)
+
+- **VS Code, Cursor, Windsurf, VSCodium, Antigravity, Theia, Codespaces**: Universal zero-dependency extension in [`extension/`](./extension/README.md) supporting `vscode >= 1.60.0` (old and latest IDEs) on Windows, macOS, and Linux.
+- **Neovim, JetBrains (LSP4IJ), Sublime Text, Zed, Helix, Emacs**: Built-in zero-dependency Language Server (`cache-inspector-lsp`) included in this npm package. See [`extension/README.md`](./extension/README.md) for copy-paste setup configs.
+
+---
+
+## Security & Privacy
+
+- **Zero dependencies** — minimal supply-chain surface.
+- **100% local** — no network access, no telemetry.
+- **Hardened scanner** — symlink escape prevention, file-size/depth/count limits, ANSI escape sanitization (CWE-150), and prototype-pollution-safe JSON parsing.
+
+## Engineering Documentation
+
+- [PRD](./docs/PRD.md)
+- [Architecture](./docs/architecture.md)
+- [Technical Design](./docs/design.md)
+- [Rules Reference](./docs/rules.md)
+- [Engineering Memory & Security Audit](./docs/memory.md)
+- [Project Tracker](./docs/tracker.md)
 
 ## License
 

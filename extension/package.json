@@ -1,0 +1,82 @@
+{
+  "name": "cache-inspector-vscode",
+  "displayName": "Next.js Cache Inspector",
+  "description": "Real-time Next.js App Router caching diagnostics, quick fixes, and workspace scanning. Zero dependencies, cross-OS (Windows, macOS, Linux), compatible with old and latest IDEs.",
+  "version": "2.0.0",
+  "publisher": "abdullahjan",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AbdullahJan-007/Cache-Inspector-Scan.git"
+  },
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "categories": [
+    "Linters",
+    "Programming Languages"
+  ],
+  "keywords": [
+    "nextjs",
+    "next",
+    "caching",
+    "app-router",
+    "server-actions",
+    "linter"
+  ],
+  "activationEvents": [
+    "onLanguage:javascript",
+    "onLanguage:javascriptreact",
+    "onLanguage:typescript",
+    "onLanguage:typescriptreact",
+    "onCommand:cacheInspector.scanWorkspace"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "cacheInspector.scanWorkspace",
+        "title": "Cache Inspector: Scan Workspace"
+      },
+      {
+        "command": "cacheInspector.clearDiagnostics",
+        "title": "Cache Inspector: Clear Diagnostics"
+      }
+    ],
+    "configuration": {
+      "title": "Next.js Cache Inspector",
+      "properties": {
+        "cacheInspector.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable or disable real-time Next.js caching diagnostics."
+        },
+        "cacheInspector.scanOnType": {
+          "type": "boolean",
+          "default": true,
+          "description": "Analyze open files as you type (debounced)."
+        },
+        "cacheInspector.debounceMs": {
+          "type": "number",
+          "default": 250,
+          "minimum": 50,
+          "maximum": 5000,
+          "description": "Debounce delay in milliseconds when scanOnType is enabled."
+        },
+        "cacheInspector.disabledRules": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["CI001", "CI002", "CI003", "CI004", "CI005", "CI006"]
+          },
+          "default": [],
+          "description": "List of Cache Inspector rule IDs to disable."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "sync-core": "node ./scripts/sync-core.mjs",
+    "prepackage": "node ./scripts/sync-core.mjs"
+  }
+}
