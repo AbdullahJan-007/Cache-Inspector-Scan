@@ -1,5 +1,7 @@
 # cache-inspector-scan
 
+[![CI](https://github.com/AbdullahJan-007/Cache-Inspector-Scan/actions/workflows/ci.yml/badge.svg)](https://github.com/AbdullahJan-007/Cache-Inspector-Scan/actions/workflows/ci.yml)
+
 > Production-grade **Next.js App Router** caching static analyzer, CLI, programmatic SDK, and universal LSP / IDE extension.
 > **Zero dependencies. 100% local. Cross-OS (Windows, macOS, Linux).**
 
