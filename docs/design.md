@@ -1,19 +1,18 @@
-# Technical Design Document — `cache-inspector-scan`
+# Technical Design: `cache-inspector-scan`
 
-## 1. Lexer State Machine (`lib/lexer.mjs`)
+## 1. Lexer (`lib/lexer.mjs`)
 
-To stay **zero-dependency** while eliminating regex fragility, `analyzeSource(source)` performs a single linear $O(N)$ pass:
+`analyzeSource(source)` runs a single `O(n)` pass over JS/TS/JSX source code without external parsers.
 
-1. **Invariant**: `codeOnly.length === source.length` and every `\n` is preserved at its exact byte index.
-2. **States**:
-   - `// ...` single-line comment → masked with spaces; recorded in `comments[]` for suppression parsing.
-   - `/* ... */` multi-line comment → masked with spaces (preserving `\n`); recorded in `comments[]`.
-   - `'...'` / `"..."` strings → delimiters preserved, interior masked with spaces; exact value & line recorded in `stringLiterals[]` (used to detect real `'use client'`, `'use server'`, `'use cache'` directives).
-   - `` `...` `` template literals → static segments masked; `${ ... }` interpolation tracked via `templateBraceStack` so nested objects/calls inside `${...}` remain valid code while surrounding template text cannot break paren balancing.
-   - `/.../` regex literals → disambiguated from division via `lastNonWsChar` / `lastNonWsToken` lookbehind heuristics.
-3. **Line/Column Index**: `buildLineIndex()` records every `\n` offset once; `offsetToLineColumn()` uses binary search ($O(\log L)$), preventing $O(N^2)$ performance degradation.
+- **Length invariant**: `codeOnly.length === source.length`, with every `\n` kept at its original index so offsets map cleanly to line and column numbers.
+- **Masking rules**:
+  - `// ...` and `/* ... */` comments are replaced with spaces (preserving newlines) and stored in `comments[]` for inline suppression parsing.
+  - `'...'` and `"..."` strings keep their quote delimiters while their interiors are masked; exact values and line numbers are stored in `stringLiterals[]` for `'use client'`, `'use server'`, and `'use cache'` directive checks.
+  - Template literals (`` `...` ``) mask static text while tracking nested `${ ... }` expressions on `templateBraceStack` so parentheses inside interpolations still balance properly.
+  - Regex literals (`/.../`) are distinguished from division using the preceding non-whitespace character or keyword.
+- **Line lookup**: `buildLineIndex()` records each line start once; `offsetToLineColumn()` uses binary search (`O(log L)`), avoiding `O(n^2)` behavior on files with many calls.
 
-## 2. Diagnostic Data Schema (`schemaVersion: "2.0.0"`)
+## 2. Scan Result Schema (`schemaVersion: "2.0.0"`)
 
 ```json
 {
@@ -51,24 +50,24 @@ To stay **zero-dependency** while eliminating regex fragility, `analyzeSource(so
 }
 ```
 
-## 3. CLI Exit Code Contract
+## 3. CLI Exit Codes
 
-| Exit Code | Condition |
+| Code | Meaning |
 |---|---|
-| `0` | Scan succeeded; no findings at or above `--fail-on` threshold. |
-| `1` | Scan succeeded; at least one finding at or above `--fail-on` threshold. |
-| `2` | Invalid CLI flag, invalid JSON config, missing/unreadable target path, or target is not a directory. |
+| `0` | Scan succeeded with no findings at or above `--fail-on`. |
+| `1` | Scan succeeded with at least one finding at or above `--fail-on`. |
+| `2` | Invalid CLI flag, invalid JSON config, missing path, or target is not a directory. |
 
-## 4. LSP Framing & Lifecycle (`lib/lsp-server.mjs`)
+## 4. LSP Server (`lib/lsp-server.mjs`)
 
-- Reads `Content-Length: <bytes>\r\n\r\n<utf8-json>` frames incrementally from a binary `Buffer` (UTF-8 byte-safe, handles multi-byte characters and split TCP/pipe chunks).
-- Responds to `initialize` with `textDocumentSync: 1` (Full) and `codeActionProvider: true`.
-- Publishes `textDocument/publishDiagnostics` immediately on `didOpen`, `didChange`, `didSave`, and clears diagnostics on `didClose`.
-- Provides `quickfix` Code Actions that insert `// cache-inspector-ignore-next-line <ruleId>` cleanly.
+- Parses `Content-Length: <bytes>\r\n\r\n<utf8-json>` frames from a binary `Buffer` so multi-byte characters and split chunks are handled safely.
+- Advertises `textDocumentSync: 1` (Full) and `codeActionProvider: true`.
+- Publishes `textDocument/publishDiagnostics` on `didOpen`, `didChange`, and `didSave`, and clears diagnostics on `didClose`.
+- Returns a `quickfix` Code Action that inserts `// cache-inspector-ignore-next-line <ruleId>`.
 
-## 5. Security Controls Design (`lib/security.mjs`)
+## 5. Security Controls (`lib/security.mjs`)
 
-- **CWE-22 / CWE-59 (Path Traversal & Symlink Escape)**: Every directory and file entry is checked via `lstatSync` / `entry.isSymbolicLink()` and `realpathSync` root containment.
-- **CWE-400 (Resource Exhaustion)**: Enforces `MAX_FILE_SIZE_BYTES = 1 MiB`, `MAX_FILES = 10,000`, `MAX_DEPTH = 32`.
-- **CWE-150 (Terminal Escape Injection)**: Strips CSI, OSC, DCS, and C0/C1 control sequences from untrusted file paths and code snippets before printing.
-- **CWE-1321 (Prototype Pollution)**: Custom `JSON.parse` reviver strips `__proto__`, `constructor`, and `prototype`; counters use `Object.create(null)`.
+- **Path traversal & symlink escape (CWE-22 / CWE-59)**: Directory and file entries are checked with `entry.isSymbolicLink()`, `lstatSync()`, and `realpathSync()` root containment.
+- **Resource limits (CWE-400)**: Enforces `MAX_FILE_SIZE_BYTES = 1 MiB`, `MAX_FILES = 10,000`, and `MAX_DEPTH = 32`.
+- **Terminal escape injection (CWE-150)**: `sanitizeForTerminal()` strips CSI, OSC, DCS, and C0/C1 control characters from untrusted file paths and snippets before printing.
+- **Prototype pollution (CWE-1321)**: `safeJsonParse()` strips `__proto__`, `constructor`, and `prototype`; internal counters use `Object.create(null)`.
