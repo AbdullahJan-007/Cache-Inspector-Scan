@@ -1,6 +1,8 @@
 # cache-inspector-scan
 
 [![CI](https://github.com/AbdullahJan-007/Cache-Inspector-Scan/actions/workflows/ci.yml/badge.svg)](https://github.com/AbdullahJan-007/Cache-Inspector-Scan/actions/workflows/ci.yml)
+[![npm version](https://img.shields.io/npm/v/cache-inspector-scan.svg)](https://www.npmjs.com/package/cache-inspector-scan)
+[![Open VSX Version](https://img.shields.io/open-vsx/v/abdullahjan/cache-inspector-vscode)](https://open-vsx.org/extension/abdullahjan/cache-inspector-vscode)
 
 > Production-grade **Next.js App Router** caching static analyzer, CLI, programmatic SDK, and universal LSP / IDE extension.
 > **Zero dependencies. 100% local. Cross-OS (Windows, macOS, Linux).**

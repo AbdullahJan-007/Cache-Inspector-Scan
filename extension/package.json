@@ -2,8 +2,9 @@
   "name": "cache-inspector-vscode",
   "displayName": "Next.js Cache Inspector",
   "description": "Real-time Next.js App Router caching diagnostics, quick fixes, and workspace scanning. Zero dependencies, cross-OS (Windows, macOS, Linux), compatible with old and latest IDEs.",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "publisher": "abdullahjan",
+  "icon": "icon.png",
   "license": "MIT",
   "repository": {
     "type": "git",
