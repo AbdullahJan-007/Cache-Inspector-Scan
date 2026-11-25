@@ -1,7 +1,7 @@
 {
   "name": "cache-inspector-scan",
   "version": "2.0.0",
-  "description": "Production-grade Next.js App Router caching static analyzer, CLI, and universal LSP server. Zero dependencies.",
+  "description": "Static analyzer for Next.js App Router caching mistakes. Zero-dependency CLI, programmatic API, and LSP server.",
   "author": "Abdullah Jan",
   "type": "module",
   "license": "MIT",

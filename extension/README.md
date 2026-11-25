@@ -1,39 +1,51 @@
-# Next.js Cache Inspector — Universal IDE Extension & LSP
+# Next.js Cache Inspector
 
-Works on **every major IDE (old & latest)** and **every OS (Windows, macOS, Linux)** with **zero native binaries** and **zero external dependencies**.
+Real-time static analysis for Next.js App Router caching in your editor. Runs locally with zero external dependencies and no native binaries on Windows, macOS, and Linux (`vscode >= 1.60.0`).
 
-## 1. VS Code, Cursor, Windsurf, VSCodium, Antigravity, Theia, Gitpod, Codespaces
+## Features
 
-Compatible with `vscode >= 1.60.0` (both older and latest IDE versions).
+- **Live Diagnostics**: Highlights Next.js caching issues in JS/TS/JSX/TSX files as you open, edit, or save.
+- **Version-Aware**: Automatically detects your installed Next.js version (14, 15, 16+, including monorepos) so severity and guidance match your project.
+- **Quick Fixes**: Insert targeted `// cache-inspector-ignore-next-line <ruleId>` comments directly from the lightbulb menu.
+- **Workspace Scan**: Run a full project scan from the Command Palette or Status Bar.
+- **Zero Dependencies**: Works offline with no network access or telemetry.
 
-### Build & Install Locally (`.vsix`)
+## Rules Checked
 
-```bash
-cd extension
-npm run sync-core
-npx @vscode/vsce package
-```
+| ID | Rule | What it catches |
+|---|---|---|
+| `CI001` | `missing-cache-option` | Server `fetch()` calls missing `cache` or `next: { revalidate / tags }` (skips `'use client'`, `pages/`, mutations, and segment config). |
+| `CI002` | `possible-missing-invalidation` | `'use server'` files without `revalidatePath()`, `revalidateTag()`, `updateTag()`, or `refresh()`. |
+| `CI003` | `conflicting-cache-options` | Contradictory `fetch()` options (`cache: 'no-store'` with positive `revalidate`, or `force-cache` with `revalidate: 0`). |
+| `CI004` | `route-handler-get-caching` | `GET` Route Handlers (`route.ts`) without explicit `dynamic` or `revalidate`. |
+| `CI005` | `dynamic-api-with-force-static` | `cookies()`, `headers()`, or `draftMode()` called alongside `export const dynamic = 'force-static'`. |
+| `CI006` | `use-cache-without-cache-life` | `'use cache'` without `cacheLife()` or `cacheTag()`. |
 
-Then install the generated `.vsix` file in any VS Code-compatible IDE:
-- **VS Code / Cursor / Windsurf / VSCodium / Antigravity**: `Extensions` → `...` → `Install from VSIX...`
-- Or via CLI: `code --install-extension cache-inspector-vscode-2.0.0.vsix`
+## Commands
 
-### Publish to VS Code Marketplace & Open VSX
+Open the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`):
 
-```bash
-npx @vscode/vsce publish
-npx ovsx publish cache-inspector-vscode-2.0.0.vsix
-```
+- `Cache Inspector: Scan Workspace` - Scan all Next.js source folders in the workspace.
+- `Cache Inspector: Clear Diagnostics` - Clear all diagnostics from the Problems panel.
 
-## 2. Neovim, JetBrains, Sublime Text, Zed, Helix, Emacs (Universal LSP)
+## Settings
 
-Install the npm package globally (or in your project):
+| Setting | Type | Default | Description |
+|---|---|---|---|
+| `cacheInspector.enable` | `boolean` | `true` | Enable or disable diagnostics. |
+| `cacheInspector.scanOnType` | `boolean` | `true` | Analyze open files while typing (debounced). |
+| `cacheInspector.debounceMs` | `number` | `250` | Delay in milliseconds before re-analyzing while typing. |
+| `cacheInspector.disabledRules` | `string[]` | `[]` | Rule IDs to turn off (e.g. `["CI006"]`). |
+
+Project-level `.cacheinspectorrc.json` files are also respected.
+
+## Using in Other Editors (LSP)
+
+For Neovim, JetBrains, Sublime Text, Helix, or Emacs, install the npm package which ships a standalone stdio Language Server (`cache-inspector-lsp`):
 
 ```bash
 npm install -g cache-inspector-scan
 ```
-
-The package exposes `cache-inspector-lsp` (standard JSON-RPC 2.0 Language Server over stdio):
 
 ### Neovim (`nvim-lspconfig`)
 
@@ -53,15 +65,13 @@ end
 lspconfig.cache_inspector.setup({})
 ```
 
-### JetBrains (WebStorm / IntelliJ IDEA / PhpStorm)
+### JetBrains (WebStorm / IntelliJ IDEA)
 
-1. Install the free **LSP4IJ** plugin from JetBrains Marketplace.
-2. Go to **Settings → Languages & Frameworks → Language Servers → +**.
-3. Set **Command**: `cache-inspector-lsp` and map file patterns `*.ts, *.tsx, *.js, *.jsx`.
+1. Install the **LSP4IJ** plugin.
+2. Go to **Settings > Languages & Frameworks > Language Servers > +**.
+3. Set command to `cache-inspector-lsp` for `*.ts, *.tsx, *.js, *.jsx`.
 
-### Sublime Text (`LSP` package)
-
-Add to `LSP.sublime-settings`:
+### Sublime Text (`LSP`)
 
 ```json
 {
@@ -88,3 +98,13 @@ command = "cache-inspector-lsp"
 (add-to-list 'eglot-server-programs
              '((js-mode tsx-ts-mode typescript-ts-mode) . ("cache-inspector-lsp")))
 ```
+
+## Links
+
+- [GitHub Repository](https://github.com/AbdullahJan-007/Cache-Inspector-Scan)
+- [npm Package (`cache-inspector-scan`)](https://www.npmjs.com/package/cache-inspector-scan)
+- [Rules Reference](https://github.com/AbdullahJan-007/Cache-Inspector-Scan/blob/main/docs/rules.md)
+
+## License
+
+MIT

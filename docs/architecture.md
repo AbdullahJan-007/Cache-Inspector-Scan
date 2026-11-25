@@ -1,24 +1,26 @@
-# System Architecture — `cache-inspector-scan`
+# Architecture: `cache-inspector-scan`
 
-## 1. High-Level Architecture
+## System Overview
+
+A single zero-dependency core in `lib/` powers all four entry points (CLI, programmatic API, LSP server, and VS Code / Open VSX extension).
 
 ```mermaid
 flowchart TD
-    subgraph Interfaces["Entry Points (Cross-OS, Zero-Dep)"]
+    subgraph Interfaces["Entry Points"]
         CLI["CLI (bin/cli.mjs)"]
-        API["Programmatic ESM API (lib/index.mjs)"]
-        LSP["Universal LSP Server (bin/lsp.mjs)"]
-        VSC["VS Code / Open VSX Extension (extension/extension.js)"]
+        API["ESM API (lib/index.mjs)"]
+        LSP["LSP Server (bin/lsp.mjs)"]
+        VSC["IDE Extension (extension/extension.js)"]
     end
 
-    subgraph Core["Core Analysis Engine (lib/)"]
-        SEC["Security Guardrails (security.mjs)"]
-        CFG["Config Loader (config.mjs)"]
-        VER["Next.js Version Detector (next-version.mjs)"]
-        WALK["Secure File Walker (walk.mjs)"]
-        LEX["Single-Pass JS/TS Lexer (lexer.mjs)"]
-        RULES["Rule Engine CI001-CI006 (rules.mjs)"]
-        REP["Report Formatters (report.mjs)"]
+    subgraph Core["Core Engine (lib/)"]
+        SEC["Security (security.mjs)"]
+        CFG["Config (config.mjs)"]
+        VER["Next Version (next-version.mjs)"]
+        WALK["Walker (walk.mjs)"]
+        LEX["Lexer (lexer.mjs)"]
+        RULES["Rules CI001-CI006 (rules.mjs)"]
+        REP["Formatters (report.mjs)"]
     end
 
     CLI --> Core
@@ -36,25 +38,24 @@ flowchart TD
     RULES --> REP
 ```
 
-## 2. Module Responsibilities
+## Modules
 
-| Module | Responsibility |
+| File | Responsibility |
 |---|---|
-| `lib/security.mjs` | Canonical root resolution, symlink containment checks, resource limits (`MAX_FILE_SIZE_BYTES`, `MAX_FILES`, `MAX_DEPTH`), CWE-150 ANSI sanitization, prototype-pollution-safe JSON parsing. |
-| `lib/lexer.mjs` | Single-pass $O(N)$ JS/TS/JSX tokenizer producing `codeOnly` (comment/string/regex-masked mirror), `stringLiterals`, `comments`, and $O(\log L)$ `lineStarts` index. |
-| `lib/next-version.mjs` | Monorepo-aware upward search (up to 5 parent dirs) for installed `node_modules/next/package.json`, with fallback to `package.json` semver ranges. |
-| `lib/config.mjs` | Strictly JSON-only `.cacheinspectorrc.json` / `cache-inspector.config.json` loader with schema & path-traversal validation. |
-| `lib/walk.mjs` | Deterministic, sorted, symlink-safe recursive directory walker with ignore matching and skipped-file telemetry. |
-| `lib/fetch-scanner.mjs` | Lexer-backed balanced-parenthesis `fetch()` extractor, explicit cache option detector, conflicting option detector, and mutating method filter. |
-| `lib/action-scanner.mjs` | Directive-accurate `'use server'` detector and invalidation call checker (`revalidateTag`, `revalidatePath`, `updateTag`, `refresh`). |
-| `lib/rules.mjs` | Orchestrates rules `CI001`–`CI006`, `'use client'` / `pages/` / segment-config awareness, severity overrides, and inline suppressions. |
-| `lib/scan.mjs` | Public `scanProject()` (disk) and `scanSource()` (in-memory editor buffers) orchestrators. |
-| `lib/report.mjs` | Formatters for ANSI-safe `text`, versioned `json`, `sarif` 2.1.0, and `github` workflow annotations. |
+| `lib/security.mjs` | Canonical root validation, symlink containment, resource limits, ANSI escape sanitization, safe JSON parsing. |
+| `lib/lexer.mjs` | Single-pass `O(n)` JS/TS/JSX masker producing `codeOnly`, `stringLiterals`, `comments`, and `O(log L)` `lineStarts`. |
+| `lib/next-version.mjs` | Checks installed `node_modules/next/package.json` up to 5 parent directories (monorepos), then falls back to `package.json`. |
+| `lib/config.mjs` | Loads `.cacheinspectorrc.json` or `cache-inspector.config.json` with strict JSON parsing and path validation. |
+| `lib/walk.mjs` | Deterministic, sorted, symlink-safe recursive directory traversal with ignore matching and skip reasons. |
+| `lib/fetch-scanner.mjs` | Balanced-parenthesis `fetch()` extraction, explicit cache detection, conflict detection, and mutating method filtering. |
+| `lib/action-scanner.mjs` | `'use server'` directive detection and invalidation call checks (`revalidateTag`, `revalidatePath`, `updateTag`, `refresh`). |
+| `lib/rules.mjs` | Runs rules `CI001`-`CI006`, skips `'use client'` and `pages/` where appropriate, applies overrides and inline suppressions. |
+| `lib/scan.mjs` | Exposes `scanProject(dir, opts)` for disk scans and `scanSource(text, opts)` for in-memory editor buffers. |
+| `lib/report.mjs` | Formats findings as ANSI-safe `text`, `json`, `sarif` (2.1.0), and `github` annotations. |
 | `lib/lsp-server.mjs` | Pure Node.js JSON-RPC 2.0 Language Server over stdio (`initialize`, `didOpen`, `didChange`, `didSave`, `didClose`, `codeAction`). |
-| `extension/extension.js` | Universal VS Code / Cursor / Windsurf / VSCodium / Antigravity / Theia extension (`engines.vscode: ^1.60.0`) with zero native binaries. |
+| `extension/extension.js` | VS Code / Open VSX extension (`engines.vscode: ^1.60.0`) using stable editor APIs and zero native binaries. |
 
-## 3. Universal IDE & OS Compatibility Strategy
+## Distribution
 
-1. **VS Code Ecosystem (Old & Latest)**: `extension/` targets `^1.60.0` using only stable core VS Code APIs (`DiagnosticCollection`, `CodeActionsProvider`, `StatusBarItem`), pure JS, and `path.sep`-agnostic POSIX normalization.
-2. **Non-VS Code IDEs (Neovim, JetBrains, Sublime, Zed, Helix, Emacs)**: `bin/lsp.mjs` speaks standard LSP over stdio using only Node.js built-ins.
-3. **Operating Systems (Windows, macOS, Linux)**: Zero native addons, zero shell invocations, `realpathSync` symlink resolution in CLI entrypoint, and POSIX `/` paths in all outputs.
+- **npm (`cache-inspector-scan`)**: Publishes `bin/`, `lib/`, `types/`, `README.md`, and `LICENSE` (~22 kB tarball).
+- **Open VSX (`abdullahjan.cache-inspector-vscode`)**: Packages `extension/` with `lib/` copied into `extension/core/` at build time via `extension/scripts/sync-core.mjs`, so the `.vsix` runs standalone without requiring the npm package in the workspace.
