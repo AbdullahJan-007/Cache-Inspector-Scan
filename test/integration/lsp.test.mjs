@@ -75,6 +75,9 @@ test('LSP integration: initialize, didOpen publishes diagnostics, codeAction ret
   const frames2 = parseLspFrames(Buffer.concat(chunks));
   const actionResp = frames2.find((m) => m.id === 2);
   assert.ok(actionResp);
-  assert.equal(actionResp.result.length, 1);
-  assert.match(actionResp.result[0].title, /Ignore CI001/);
+  assert.equal(actionResp.result.length, 3);
+  assert.match(actionResp.result[0].title, /no-store/);
+  assert.equal(actionResp.result[0].isPreferred, true);
+  assert.match(actionResp.result[1].title, /revalidate: 60/);
+  assert.match(actionResp.result[2].title, /Ignore CI001/);
 });

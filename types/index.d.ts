@@ -97,5 +97,20 @@ export declare function formatReport(result: ScanResult, options?: { useColor?: 
 export declare function formatJson(result: ScanResult): string;
 export declare function formatSarif(result: ScanResult, toolVersion?: string): string;
 export declare function formatGithub(result: ScanResult): string;
+export interface CodeFix {
+  title: string;
+  kind: 'quickfix';
+  isPreferred: boolean;
+  startOffset: number;
+  endOffset: number;
+  newText: string;
+  startLine: number;
+  startColumn: number;
+  endLine: number;
+  endColumn: number;
+}
+
 export declare function shouldFail(findings: Finding[], failOn?: FailOnLevel): boolean;
 export declare function sanitizeForTerminal(input: string): string;
+export declare function getFixesForFinding(sourceText: string, finding: Finding): CodeFix[];
+export declare function applyFix(sourceText: string, fix: CodeFix): string;

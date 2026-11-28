@@ -74,14 +74,51 @@ function getDisabledRulesMap(vscode) {
 
 function createCodeActionProvider(vscode) {
   return {
-    provideCodeActions(document, _range, context) {
+    async provideCodeActions(document, _range, context) {
       const actions = [];
-      for (const diag of context.diagnostics || []) {
-        if (diag.source !== 'cache-inspector') continue;
-        const ruleCode = String(diag.code || 'CI001');
-        const line = diag.range.start.line;
-        const indent = document.lineAt(line).text.match(/^\s*/)[0];
+      const relevant = (context.diagnostics || []).filter((d) => d.source === 'cache-inspector');
+      if (relevant.length === 0) return actions;
 
+      let core = null;
+      try {
+        core = await loadCore();
+      } catch {
+        core = null;
+      }
+
+      const sourceText = document.getText();
+      for (const diag of relevant) {
+        const ruleCode = String(diag.code || 'CI001');
+        const line = diag.range.start.line + 1;
+        const column = diag.range.start.character + 1;
+
+        if (core && typeof core.getFixesForFinding === 'function') {
+          const fixes = core.getFixesForFinding(sourceText, { ruleId: ruleCode, line, column });
+          for (const fix of fixes) {
+            const action = new vscode.CodeAction(fix.title, vscode.CodeActionKind.QuickFix);
+            action.isPreferred = Boolean(fix.isPreferred);
+            action.diagnostics = [diag];
+            const edit = new vscode.WorkspaceEdit();
+            const range = new vscode.Range(
+              fix.startLine - 1,
+              fix.startColumn - 1,
+              fix.endLine - 1,
+              fix.endColumn - 1
+            );
+            if (typeof edit.replace === 'function') {
+              edit.replace(document.uri, range, fix.newText);
+            } else {
+              edit.insert(document.uri, new vscode.Position(fix.startLine - 1, fix.startColumn - 1), fix.newText);
+            }
+            action.edit = edit;
+            actions.push(action);
+          }
+          continue;
+        }
+
+        // Fallback if core lacks getFixesForFinding
+        const zeroLine = diag.range.start.line;
+        const indent = document.lineAt(zeroLine).text.match(/^\s*/)[0];
         const ignoreAction = new vscode.CodeAction(
           `Ignore ${ruleCode} on this line (cache-inspector)`,
           vscode.CodeActionKind.QuickFix
@@ -90,7 +127,7 @@ function createCodeActionProvider(vscode) {
         const edit = new vscode.WorkspaceEdit();
         edit.insert(
           document.uri,
-          new vscode.Position(line, 0),
+          new vscode.Position(zeroLine, 0),
           `${indent}// cache-inspector-ignore-next-line ${ruleCode}\n`
         );
         ignoreAction.edit = edit;

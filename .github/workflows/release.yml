@@ -1,0 +1,69 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      publish_npm:
+        description: 'Publish npm package (cache-inspector-scan)'
+        type: boolean
+        default: false
+      publish_ovsx:
+        description: 'Publish Open VSX extension (abdullahjan.cache-inspector-vscode)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  verify:
+    name: Verify tests and packages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node extension/scripts/sync-core.mjs
+      - run: npm test
+      - run: npm run pack:check
+
+  publish-npm:
+    name: Publish to npm
+    needs: verify
+    if: startsWith(github.ref, 'refs/tags/v') || inputs.publish_npm == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: 'https://registry.npmjs.org'
+      - name: Publish npm package
+        if: env.NODE_AUTH_TOKEN != ''
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --provenance --access public
+
+  publish-ovsx:
+    name: Publish to Open VSX
+    needs: verify
+    if: startsWith(github.ref, 'refs/tags/v') || inputs.publish_ovsx == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Package and publish VSIX
+        if: env.OVSX_PAT != ''
+        working-directory: extension
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: |
+          npx --yes @vscode/vsce package --no-dependencies
+          npx --yes ovsx publish *.vsix -p "$OVSX_PAT"

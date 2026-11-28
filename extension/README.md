@@ -6,7 +6,7 @@ Real-time static analysis for Next.js App Router caching in your editor. Runs lo
 
 - **Live Diagnostics**: Highlights Next.js caching issues in JS/TS/JSX/TSX files as you open, edit, or save.
 - **Version-Aware**: Automatically detects your installed Next.js version (14, 15, 16+, including monorepos) so severity and guidance match your project.
-- **Quick Fixes**: Insert targeted `// cache-inspector-ignore-next-line <ruleId>` comments directly from the lightbulb menu.
+- **Quick Fixes & Autofix**: One-click autofixes to add `{ cache: 'no-store' }`, `{ next: { revalidate: 60 } }`, or `export const dynamic` directly from the lightbulb menu, plus targeted `// cache-inspector-ignore-next-line <ruleId>` comments.
 - **Workspace Scan**: Run a full project scan from the Command Palette or Status Bar.
 - **Zero Dependencies**: Works offline with no network access or telemetry.
 

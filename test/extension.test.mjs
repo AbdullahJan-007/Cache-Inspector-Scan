@@ -42,6 +42,9 @@ function createMockVscode(workspaceRoot) {
     insert(uri, pos, text) {
       this.edits.push({ uri, pos, text });
     }
+    replace(uri, range, text) {
+      this.edits.push({ uri, range, text });
+    }
   }
 
   return {
@@ -119,10 +122,14 @@ test('VS Code / Open VSX extension analyzes documents and produces quick-fix cod
   assert.equal(diags[0].source, 'cache-inspector');
 
   const provider = ext.createCodeActionProvider(vscode);
-  const actions = provider.provideCodeActions(doc, diags[0].range, { diagnostics: diags });
-  assert.equal(actions.length, 1);
-  assert.match(actions[0].title, /Ignore CI001/);
-  assert.match(actions[0].edit.edits[0].text, /cache-inspector-ignore-next-line CI001/);
+  const actions = await provider.provideCodeActions(doc, diags[0].range, { diagnostics: diags });
+  assert.equal(actions.length, 3);
+  assert.match(actions[0].title, /no-store/);
+  assert.equal(actions[0].isPreferred, true);
+  assert.match(actions[0].edit.edits[0].text, /cache: 'no-store'/);
+  assert.match(actions[1].title, /revalidate: 60/);
+  assert.match(actions[2].title, /Ignore CI001/);
+  assert.match(actions[2].edit.edits[0].text, /cache-inspector-ignore-next-line CI001/);
 
   ext.deactivate();
 });

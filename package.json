@@ -38,6 +38,7 @@
     "lib",
     "types",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE"
   ],
   "bin": {
@@ -46,7 +47,7 @@
   },
   "scripts": {
     "test": "node --test",
-    "test:unit": "node --test test/action-scanner.test.mjs test/extension.test.mjs test/fetch-scanner.test.mjs test/lexer.test.mjs test/next-version.test.mjs test/report.test.mjs test/rules.test.mjs",
+    "test:unit": "node --test test/action-scanner.test.mjs test/autofix.test.mjs test/extension.test.mjs test/fetch-scanner.test.mjs test/lexer.test.mjs test/next-version.test.mjs test/report.test.mjs test/rules.test.mjs",
     "test:integration": "node --test test/integration",
     "test:security": "node --test test/security-redteam.test.mjs",
     "pack:check": "npm pack --dry-run"
