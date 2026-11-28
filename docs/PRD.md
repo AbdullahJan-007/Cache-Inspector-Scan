@@ -31,6 +31,8 @@ Developers upgrading between versions or copying older examples frequently ship 
 | FR-6 | Project config (`.cacheinspectorrc.json`) for roots, ignores, severity overrides, and `--fail-on` | P1 | Done |
 | FR-7 | Typed ESM programmatic API (`lib/index.mjs` and `types/index.d.ts`) | P1 | Done |
 | FR-8 | Editor support via Open VSX / VS Code extension (`>=1.60.0`) and stdio LSP (`cache-inspector-lsp`) | P0 | Done |
+| FR-9 | Automated 1-click quickfixes (`getFixesForFinding`, `applyFix`) for `CI001` and `CI004` across IDE and LSP | P0 | Done |
+| FR-10 | Automated CI matrix (Windows, macOS, Ubuntu x Node 18, 20, 22) and tag-based release workflow | P1 | Done |
 
 ## Constraints
 

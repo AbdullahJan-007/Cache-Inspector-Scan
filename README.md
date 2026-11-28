@@ -131,15 +131,20 @@ For GitHub Code Scanning, pass `--format sarif > results.sarif` and upload with 
 Ships as ESM with TypeScript declarations (`types/index.d.ts`):
 
 ```ts
-import { scanProject, scanSource, formatSarif } from 'cache-inspector-scan';
+import { scanProject, scanSource, getFixesForFinding, applyFix, formatSarif } from 'cache-inspector-scan';
 
 const result = scanProject('./my-next-app');
 console.log(result.summary, result.findings);
 
-const findings = scanSource(
-  `export default async function Page() { await fetch('/api'); }`,
-  { filePath: 'app/page.tsx', nextVersion: 15 }
-);
+// In-memory scanning and autofixing
+const code = `export default async function Page() { await fetch('/api'); }`;
+const findings = scanSource(code, { filePath: 'app/page.tsx', nextVersion: 15 });
+
+if (findings.length > 0) {
+  const fixes = getFixesForFinding(code, findings[0]);
+  const updatedCode = applyFix(code, fixes[0]);
+  console.log(updatedCode);
+}
 ```
 
 ## Editor Support
@@ -160,6 +165,8 @@ const findings = scanSource(
 - [Technical Design](https://github.com/AbdullahJan-007/Cache-Inspector-Scan/blob/main/docs/design.md)
 - [PRD](https://github.com/AbdullahJan-007/Cache-Inspector-Scan/blob/main/docs/PRD.md)
 - [Decisions & Security Audit](https://github.com/AbdullahJan-007/Cache-Inspector-Scan/blob/main/docs/memory.md)
+- [Changelog](https://github.com/AbdullahJan-007/Cache-Inspector-Scan/blob/main/CHANGELOG.md)
+- [Project Tracker](https://github.com/AbdullahJan-007/Cache-Inspector-Scan/blob/main/docs/tracker.md)
 
 ## License
 

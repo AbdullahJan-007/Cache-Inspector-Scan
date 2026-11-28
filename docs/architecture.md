@@ -20,6 +20,7 @@ flowchart TD
         WALK["Walker (walk.mjs)"]
         LEX["Lexer (lexer.mjs)"]
         RULES["Rules CI001-CI006 (rules.mjs)"]
+        AUTO["Autofix Engine (autofix.mjs)"]
         REP["Formatters (report.mjs)"]
     end
 
@@ -28,6 +29,7 @@ flowchart TD
     LSP --> LEX
     LSP --> RULES
     LSP --> VER
+    LSP --> AUTO
     VSC --> API
 
     SEC --> WALK
@@ -35,6 +37,7 @@ flowchart TD
     WALK --> LEX
     LEX --> RULES
     VER --> RULES
+    RULES --> AUTO
     RULES --> REP
 ```
 
@@ -50,12 +53,14 @@ flowchart TD
 | `lib/fetch-scanner.mjs` | Balanced-parenthesis `fetch()` extraction, explicit cache detection, conflict detection, and mutating method filtering. |
 | `lib/action-scanner.mjs` | `'use server'` directive detection and invalidation call checks (`revalidateTag`, `revalidatePath`, `updateTag`, `refresh`). |
 | `lib/rules.mjs` | Runs rules `CI001`-`CI006`, skips `'use client'` and `pages/` where appropriate, applies overrides and inline suppressions. |
+| `lib/autofix.mjs` | Computes syntax-safe code replacements (`getFixesForFinding`, `applyFix`) for `CI001` (fetch options) and `CI004` (route segment config). |
 | `lib/scan.mjs` | Exposes `scanProject(dir, opts)` for disk scans and `scanSource(text, opts)` for in-memory editor buffers. |
 | `lib/report.mjs` | Formats findings as ANSI-safe `text`, `json`, `sarif` (2.1.0), and `github` annotations. |
 | `lib/lsp-server.mjs` | Pure Node.js JSON-RPC 2.0 Language Server over stdio (`initialize`, `didOpen`, `didChange`, `didSave`, `didClose`, `codeAction`). |
-| `extension/extension.js` | VS Code / Open VSX extension (`engines.vscode: ^1.60.0`) using stable editor APIs and zero native binaries. |
+| `extension/extension.js` | VS Code / Open VSX extension (`engines.vscode: ^1.60.0`) using stable editor APIs, real code actions, and zero native binaries. |
 
 ## Distribution
 
-- **npm (`cache-inspector-scan`)**: Publishes `bin/`, `lib/`, `types/`, `README.md`, and `LICENSE` (~22 kB tarball).
+- **npm (`cache-inspector-scan`)**: Publishes `bin/`, `lib/`, `types/`, `README.md`, `CHANGELOG.md`, and `LICENSE` (~25 kB tarball).
 - **Open VSX (`abdullahjan.cache-inspector-vscode`)**: Packages `extension/` with `lib/` copied into `extension/core/` at build time via `extension/scripts/sync-core.mjs`, so the `.vsix` runs standalone without requiring the npm package in the workspace.
+- **CI / CD (`.github/workflows/`)**: `ci.yml` runs a 9-job matrix (Windows, macOS, Ubuntu x Node 18, 20, 22), while `release.yml` handles tag-triggered provenance publishing.

@@ -63,9 +63,23 @@
 - Parses `Content-Length: <bytes>\r\n\r\n<utf8-json>` frames from a binary `Buffer` so multi-byte characters and split chunks are handled safely.
 - Advertises `textDocumentSync: 1` (Full) and `codeActionProvider: true`.
 - Publishes `textDocument/publishDiagnostics` on `didOpen`, `didChange`, and `didSave`, and clears diagnostics on `didClose`.
-- Returns a `quickfix` Code Action that inserts `// cache-inspector-ignore-next-line <ruleId>`.
+- Tracks document buffers in memory to supply context for `textDocument/codeAction` requests.
+- Returns targeted `quickfix` Code Actions powered by `getFixesForFinding()`, allowing 1-click fixes for `CI001` and `CI004` alongside ignore comments.
 
-## 5. Security Controls (`lib/security.mjs`)
+## 5. Autofix Engine (`lib/autofix.mjs`)
+
+`getFixesForFinding(sourceText, finding)` and `applyFix(sourceText, fix)` generate syntax-preserving source code transformations:
+
+- **CI001 (Missing fetch cache option)**:
+  - Parses top-level arguments within balanced parentheses using `codeOnly`.
+  - For single-argument `fetch(url)`: Inserts `, { cache: 'no-store' }` (preferred) or `, { next: { revalidate: 60 } }` before the closing parenthesis.
+  - For `fetch(url, {})` (empty object): Replaces inner whitespace with ` cache: 'no-store' `.
+  - For `fetch(url, { headers: ... })`: Prepends the property into the existing object literal, preserving indentation.
+  - For non-literal identifiers (e.g., `fetch(url, customOpts)`): Refrains from mutating variable expressions and safely offers line suppression.
+- **CI004 (Route handler GET caching)**:
+  - Inserts `export const dynamic = 'force-static';\n` (preferred) or `export const dynamic = 'force-dynamic';\n` directly above the `GET` handler export.
+
+## 6. Security Controls (`lib/security.mjs`)
 
 - **Path traversal & symlink escape (CWE-22 / CWE-59)**: Directory and file entries are checked with `entry.isSymbolicLink()`, `lstatSync()`, and `realpathSync()` root containment.
 - **Resource limits (CWE-400)**: Enforces `MAX_FILE_SIZE_BYTES = 1 MiB`, `MAX_FILES = 10,000`, and `MAX_DEPTH = 32`.

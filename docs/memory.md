@@ -5,7 +5,7 @@
 ### ADR-001: Zero-Dependency Lexer Instead of Regex or Full Compiler AST
 - **Context**: v1.0.0 relied on regexes and raw parenthesis counting, which broke on `)` inside strings/comments and false-positived on commented `fetch()` calls, member `.fetch()` calls, and `'use client'` files. Adding `typescript` or `@babel/parser` would add 10-40 MB of dependencies.
 - **Decision**: Implement a single-pass `O(n)` JS/TS/JSX lexer (`lib/lexer.mjs`) with an `O(log L)` line-offset index.
-- **Result**: Zero runtime dependencies, ~21.7 kB npm package, and <50ms scan time for 2,000 `fetch()` calls.
+- **Result**: Zero runtime dependencies, ~25 kB npm package, and <50ms scan time for 2,000 `fetch()` calls.
 
 ### ADR-002: Shared Core Across CLI, SDK, LSP, and IDE Extension
 - **Context**: Supporting both VS Code-compatible IDEs (old and current) and non-VS Code editors across Windows, macOS, and Linux without duplicating rules.
@@ -18,7 +18,12 @@
 - **Context**: Executing arbitrary `.js`/`.mjs` config files from untrusted repositories in CI or on editor open is an RCE vector.
 - **Decision**: Support `.cacheinspectorrc.json` / `cache-inspector.config.json` only, parsed with prototype-pollution stripping.
 
-## Bugs Fixed in v2.0.0
+### ADR-004: Shared Zero-Dependency Autofix Engine
+- **Context**: Users need quickfixes in both VS Code / Cursor and non-VS Code editors (Neovim, JetBrains via LSP). Hardcoding string edits inside the extension would duplicate logic and leave LSP users with only comment suppressions.
+- **Decision**: Centralize syntax-safe transformations in `lib/autofix.mjs` (`getFixesForFinding` and `applyFix`). Both `extension.js` and `lsp-server.mjs` consume the same API.
+- **Result**: 1-click options insertion for `CI001` and dynamic segment insertion for `CI004` work identically across all editors and programmatic users.
+
+## Bugs Fixed in v2.0.0 & v2.1.0
 
 1. Balanced-paren scanning now ignores `)` inside strings, comments, template literals, and regexes.
 2. Skipped `'use client'` files and `pages/` for App Router server `fetch()` rules.
@@ -29,10 +34,11 @@
 7. Normalized all output paths to POSIX `/` across Windows, macOS, and Linux.
 8. Used `realpathSync` in `bin/cli.mjs` direct-run detection so global/npx symlinks work on macOS and Linux.
 9. Added `main`, `types`, `exports`, `lib/index.mjs`, and `types/index.d.ts`.
+10. Added shared autofix engine with round-trip verification tests.
 
 ## Security Audit & Mitigations
 
-All findings below are covered by automated tests in `test/security-redteam.test.mjs`.
+All findings below are covered by automated tests in `test/security-redteam.test.mjs` (61 total tests in suite).
 
 | ID | Issue | Severity | Mitigation |
 |---|---|---|---|
